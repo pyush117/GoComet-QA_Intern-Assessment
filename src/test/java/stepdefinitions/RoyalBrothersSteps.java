@@ -44,21 +44,28 @@ public class RoyalBrothersSteps {
         }
     }
 
-    @When("user applies location filter {string}")
+    @Then("user applies location filter {string}")
     public void user_applies_location_filter(String location) {
         royalBrothers.applyFilter(location);
     }
 
-    @Then("all listed bikes should belong to {string}")
-    public void all_listed_bikes_should_belong_to_location(String location) {
-        royalBrothers.validateAndPrintBikes(location);
+    @And( "user should collect all the data of bikes with {string}")
+    public void user_should_collect_all_the_data_of_bikes_with_location(String location) {
+        royalBrothers.collectBikesData(location);
     }
 
+    @Then("user should print bikes data")
+    public  void user_should_print_bikes_data(){
+        royalBrothers.printBikes();
+    }
+
+    @Then("user should validate the data at {string}")
+    public void user_should_validate_the_data(String locationName){
+        royalBrothers.validateCollectedData(locationName);
+    }
+     // ============ Negative case ==========
     @Then("user should see no bikes message {string}")
     public void user_should_see_no_bikes_message(String expectedMessage) {
         royalBrothers.unAvilableBikes(expectedMessage);
     }
-
-
-
 }

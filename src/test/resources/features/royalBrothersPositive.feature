@@ -7,12 +7,16 @@ Feature: Search and validate bikes based on city and location
     And user clicks on search
     Then user validate "pickUp" date "<pickupDate>" and time "<pickupTime>" should be visible
     Then user validate "dropOff" date "<dropDate>" and time "<dropTime>" should be visible
-    When user applies location filter "<location>"
-    Then all listed bikes should belong to "<location>"
+    Then user applies location filter "<location>"
+    And  user should collect all the data of bikes with "<location>"
+    Then user should print bikes data
+    Then user should validate the data at "<location>"
+
 
     Examples:
       | city      | location                         | pickupDate   | pickupTime | dropDate    | dropTime |
       | Bangalore | Koramangala (Beside Sony Signal) | 26 Jan, 2026  | 9:00 AM   | 27 Jan, 2026 | 10:00 AM |
+      | Ranchi    | Kokar Industrial Area (a)        | 15 Jan, 2026   | 10:00 AM | 16 Jan, 2026 | 9:30 AM |
 
 
 

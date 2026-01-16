@@ -11,7 +11,7 @@ public class PlaywrightFactory {
 
     public Page initBrowser() {
         playwright = Playwright.create();
-        browser = playwright.chromium().launch(
+        browser = playwright.firefox().launch(
                 new BrowserType.LaunchOptions().setHeadless(false).setSlowMo(1000)
         );
         context = browser.newContext();

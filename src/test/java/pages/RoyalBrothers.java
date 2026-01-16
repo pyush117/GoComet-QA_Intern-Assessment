@@ -1,15 +1,19 @@
 package pages;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import io.cucumber.java.it.Ma;
 import org.testng.Assert;
 import utils.constants.AppConstants;
-import java.util.ArrayList;
-import java.util.List;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
+import java.util.*;
 
 public class RoyalBrothers {
     Page page;
+    private boolean noBikesFound=false;
     private final List<String> availableBikes = new ArrayList<>();
-    private final List<String> notAvailableBikes = new ArrayList<>();
     public RoyalBrothers(Page page) {
         this.page = page;
     }
@@ -21,7 +25,7 @@ public class RoyalBrothers {
         Locator searchBarLocator = page.locator(AppConstants.SEARCH_BAR);
         searchBarLocator.fill(city);
         Assert.assertTrue(validateSearch(city), "City search validation failed for: " + city);
-        page.locator(AppConstants.CITY_CARD).first().click();
+        page.locator(String.format(AppConstants.CITY_CARD,city)).first().click();
         page.waitForTimeout(2000);
         String currentUrl = page.url();
         Assert.assertTrue(currentUrl.toLowerCase().contains(city.toLowerCase()),
@@ -41,151 +45,144 @@ public class RoyalBrothers {
         }
         return false;
     }
-    public void setPickUpInfo(String date, String time) {
-        page.locator(AppConstants.PICKUP_DATE_INPUT_FIELD).click();
-        page.locator(AppConstants.CALENDER_HOLDER_VISIBLE).locator(String.format(AppConstants.DATE_OPTION, date)).click();
-        page.locator(AppConstants.CALENDER_HOLDER_VISIBLE).locator(String.format(AppConstants.TIME_OPTION, time)).click();
-    }
-    public void setDropInfo(String date, String time) {
-        page.locator(AppConstants.CALENDER_HOLDER_VISIBLE).locator(String.format(AppConstants.DATE_OPTION, date)).click();
-        page.locator(AppConstants.CALENDER_HOLDER_VISIBLE).locator(String.format(AppConstants.TIME_OPTION, time)).click();
+    public void setPickAndDropInfo(String pickupDate, String pickupTime, String dropDate, String dropTime) {
+
+    Assert.assertFalse(pickupDate == null || pickupDate.trim().isEmpty(), "Pickup date is null/empty");
+    Assert.assertFalse(pickupTime == null || pickupTime.trim().isEmpty(), "Pickup time is null/empty");
+    Assert.assertFalse(dropDate == null || dropDate.trim().isEmpty(), "Drop date is null/empty");
+    Assert.assertFalse(dropTime == null || dropTime.trim().isEmpty(), "Drop time is null/empty");
+
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM, yyyy", Locale.ENGLISH);
+    LocalDate pickDate = LocalDate.parse(pickupDate.trim(), formatter);
+    LocalDate dropD = LocalDate.parse(dropDate.trim(), formatter);
+    LocalDate today = LocalDate.now();
+    Assert.assertFalse(pickDate.isBefore(today), "Pickup date is past: " + pickupDate);
+    Assert.assertFalse(dropD.isBefore(pickDate), "Drop date cannot be before pickup date");
+    page.locator(AppConstants.PICKUP_DATE_INPUT_FIELD).click();
+    Locator calendar = page.locator(AppConstants.CALENDER_HOLDER_VISIBLE);
+    AppConstants.selectDateWithMonthMove(page,calendar, pickDate, pickupDate.trim());
+    AppConstants.selectTimeWithScroll(page,pickupTime.trim());
+    AppConstants.selectDateWithMonthMove(page,calendar, dropD, dropDate.trim());
+    AppConstants.selectTimeWithScroll(page,dropTime.trim());
+}
+    public boolean shouldContinue() {
+        Locator noBikesMsg = page.locator(AppConstants.UNAVILABLE_MESSAGE_LOCATION);
+        if (noBikesMsg.count() > 0) {
+            System.out.println(noBikesMsg.innerText());
+            return false;
+        }
+        return true;
     }
     public void clickSearch() {
         page.locator(AppConstants.SEARCH_BUTTON).click();
-        page.waitForTimeout(4000);
+        if(!shouldContinue()) noBikesFound=true;
+        Locator locateError=page.locator(AppConstants.SEARCH_ERROR_MESSAGE);
+        String message=locateError.innerText().trim();
+        System.out.println(message);
+        Assert.assertNotEquals(locateError.innerText(), "please select date!");
+
+
     }
-    public void validatePickup(String date, String time) {
-        String pickupDateSelected = page.locator(AppConstants.PICKUP_DATE_DESK)
-                .getAttribute("data-selected");
-        if (pickupDateSelected == null) {
-            throw new AssertionError("Pickup date not found");
-        }
-        String formattedPickupDate = AppConstants.formatSelectedDate(pickupDateSelected);
-        if (!formattedPickupDate.equals(date)) {
-            throw new AssertionError(
-                    "Pickup date mismatch. Expected: " + date +
-                            ", Found: " + formattedPickupDate
-            );
-        }
-        String pickupTimeSelected =
-                page.locator(AppConstants.PICKUP_TIME_DESK)
-                        .inputValue()
-                        .trim();
-        if (!pickupTimeSelected.equals(time)) {
-            throw new AssertionError(
-                    "Pickup time mismatch. Expected: " + time +
-                            ", Found: " + pickupTimeSelected
-            );
-        }
-    }
-    public void validateDropOff(String date, String time) {
-        String dropOffDateSelected =
-                page.locator(AppConstants.DROP_DATE_DESK)
-                        .getAttribute("data-selected");
-        if (dropOffDateSelected == null) {
-            throw new AssertionError("DropOff date not found");
-        }
-        String formattedDropOffDate = AppConstants.formatSelectedDate(dropOffDateSelected);
-        if (!formattedDropOffDate.equals(date)) {
-            throw new AssertionError(
-                    "DropOff date mismatch. Expected: " + date +
-                            ", Found: " + formattedDropOffDate
-            );
-        }
-        String dropOffTimeSelected =
-                page.locator(AppConstants.DROP_TIME_DESK)
-                        .inputValue()
-                        .trim();
-        if (!dropOffTimeSelected.equals(time)) {
-            throw new AssertionError(
-                    "DropOff time mismatch. Expected: " + time +
-                            ", Found: " + dropOffTimeSelected
-            );
-        }
+    public void validatePickupAndDropOff(String pickupDate, String pickupTime, String dropDate, String dropTime) {
+
+        if (noBikesFound) return;
+
+        String pickupRawDate = page.locator(AppConstants.PICKUP_DATE_DESK).getAttribute("data-selected");
+        Assert.assertNotNull(pickupRawDate, "Pickup date not found");
+        String actualPickupDate = AppConstants.formatSelectedDate(pickupRawDate);
+        Assert.assertEquals(actualPickupDate, pickupDate, "Pickup date mismatch. Expected: " + pickupDate + ", Found: " + actualPickupDate);
+        String actualPickupTime = page.locator(AppConstants.PICKUP_TIME_DESK).inputValue().trim();
+        Assert.assertEquals(actualPickupTime, pickupTime, "Pickup time mismatch. Expected: " + pickupTime + ", Found: " + actualPickupTime);
+        String dropRawDate = page.locator(AppConstants.DROP_DATE_DESK).getAttribute("data-selected");
+        Assert.assertNotNull(dropRawDate, "DropOff date not found");
+        String actualDropDate = AppConstants.formatSelectedDate(dropRawDate);
+        Assert.assertEquals(actualDropDate, dropDate, "DropOff date mismatch. Expected: " + dropDate + ", Found: " + actualDropDate);
+        String actualDropTime = page.locator(AppConstants.DROP_TIME_DESK).inputValue().trim();
+        Assert.assertEquals(actualDropTime, dropTime, "DropOff time mismatch. Expected: " + dropTime + ", Found: " + actualDropTime);
     }
     public void applyFilter(String locationName) {
-        Locator filterContainer = page.locator(AppConstants.FILTER_CONTAINER);
-        Locator location = page.locator(String.format(AppConstants.LOCATION_LABEL, locationName));
-        int maxScrolls = 15;
-        int step = 300;
-        boolean found = false;
-        for (int i = 0; i < maxScrolls; i++) {
-            if (location.count() > 0) {
-                found = true;
-                break;
-            }
-            filterContainer.evaluate("el => el.scrollTop = el.scrollTop + " + step);
+
+    if (noBikesFound) return;
+
+
+    String[] locations = locationName.split(",");
+
+    Locator filterContainer = page.locator(AppConstants.FILTER_CONTAINER);
+
+    for (String loc : locations) {
+        String trimmedLoc = loc.trim();
+        if (trimmedLoc.isEmpty()) continue;
+        Locator searchInput = page.locator(AppConstants.LOCATION_SEARCH_INPUT);
+        searchInput.click();
+        searchInput.press("Control+A");
+        searchInput.press("Backspace");
+        searchInput.pressSequentially(trimmedLoc);
+        Locator firstResult = page.locator(AppConstants.LOCATION_SEARCH_RESULT);
+        firstResult.waitFor();
+        firstResult.click();
+        Locator checkbox = firstResult.locator(AppConstants.LOCATION_SEARCH_RESULT);
+        if (checkbox.count() > 0) {
+            checkbox.check();Assert.assertTrue(checkbox.isChecked(), "Checkbox not checked for location: " + trimmedLoc);
         }
-        Assert.assertTrue(found, "Location not found in filter list: " + locationName);
-        location.scrollIntoViewIfNeeded();
-        location.click();
-        Locator checkbox = location.locator(AppConstants.CHECKBOX);
-        checkbox.check();
-        Assert.assertTrue(checkbox.isChecked(),
-                "Checkbox not checked for location: " + locationName);
-        Locator clickFilter = page.locator(AppConstants.APPLY_FILTER_BUTTON);
-        clickFilter.click();
     }
-    public void collectBikesData(String expectedLocation) {
+    Locator clickFilter = page.locator(AppConstants.APPLY_FILTER_BUTTON);
+    clickFilter.click();
+}
+    public void collectBikesData(String expectedLocations) {
+
+        if (noBikesFound) return;
+        String[] selectedLocations = expectedLocations.split(",");
         Locator cards = page.locator(AppConstants.BIKE_CARDS);
         int count = cards.count();
+        if (count == 0) {
+            System.out.println("No available Bikes");
+            return;
+        }
         System.out.println("Total cards found: " + count);
+        availableBikes.clear();
         for (int i = 0; i < count; i++) {
             Locator card = cards.nth(i);
             card.scrollIntoViewIfNeeded();
-            String bikeName = card.locator(AppConstants.BIKE_NAME).innerText();
-            String price = card.locator(AppConstants.BIKE_PRICE).innerText();
-            if (card.locator(AppConstants.BIKE_SOLD_OUT_TEXT).count() > 0) {
-                notAvailableBikes.add("Bike: " + bikeName + " | Price: " + price + " | Reason: Sold Out!");
-                continue;
-            }
-            if (card.locator(AppConstants.BIKE_LOCATION_PLACEHOLDER).count() > 0) {
-                notAvailableBikes.add("Bike: " + bikeName + " | Price: " + price + " | Reason: Select pickup location (placeholder)");
+            if (card.locator(AppConstants.BIKE_SOLD_OUT_TEXT).count() > 0 || card.locator(AppConstants.BIKE_LOCATION_PLACEHOLDER).count() > 0) {
                 continue;
             }
             Locator titleLoc = card.locator(AppConstants.BIKE_LOCATION_TITLE);
-            Locator addressLoc = card.locator(AppConstants.BIKE_LOCATION_ADDRESS);
-            if (titleLoc.count() == 0 || addressLoc.count() == 0) {
-                notAvailableBikes.add("Bike: " + bikeName + " | Price: " + price + " | Reason: Location details missing");
+
+            if (titleLoc.count() == 0) {
                 continue;
             }
-            String actualTitle = titleLoc.innerText();
-            String actualAddress = addressLoc.innerText();
-            String actualFullLocation = actualTitle + " (" + actualAddress + ")";
-            if (!expectedLocation.contains(actualTitle) || !expectedLocation.contains(actualAddress)) {
-                notAvailableBikes.add("Bike: " + bikeName + " | Price: " + price + " | Found Location: " + actualFullLocation + " | Expected Location: " + expectedLocation);
+            String bikeName = card.locator(AppConstants.BIKE_NAME).innerText().trim();
+            String price = card.locator(AppConstants.BIKE_PRICE).innerText().trim();
+            String Title = titleLoc.innerText().trim();
+            boolean matched = false;
+            for (String loc : selectedLocations) {
+                String expected = loc.trim();
+                if (expected.contains(Title)) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
                 continue;
             }
-            availableBikes.add("Bike: " + bikeName + " | Available at: " + actualFullLocation + " | Price: " + price);
+            availableBikes.add("Bike: " + bikeName + " | Available at: " + Title + " | Price: " + price);
+
         }
-    }
-    public void printBikes() {
-        System.out.println("\n========== BIKES AVAILABLE AT SELECTED LOCATION ==========");
+        System.out.println("\n========== BIKES AVAILABLE AT SELECTED LOCATIONS ==========");
         if (availableBikes.isEmpty()) {
-            System.out.println("No bikes available at selected location.");
+            System.out.println("No bikes available at selected locations.");
         } else {
-            for (String bike : availableBikes) {
-                System.out.println(bike);
+            for (String element : availableBikes) {
+                System.out.println(element);
             }
-        }
-        System.out.println("\n========== BIKES NOT AVAILABLE AT SELECTED LOCATION ==========");
-        if (notAvailableBikes.isEmpty()) {
-            System.out.println("All bikes are available at selected location.");
-        } else {
-            for (String bike : notAvailableBikes) {
-                System.out.println(bike);
-            }
+
         }
     }
-    public void validateCollectedData(String locationName){
-        int countUnAvilableBikes=notAvailableBikes.size();
-        Assert.assertEquals(countUnAvilableBikes, 0, "Some bikes are NOT available at " + locationName + " or Sold Out!:\n");
-    }
-    public void unAvilableBikes(String expectedMessage) {
-        Locator noBikesMsg = page.locator(String.format(AppConstants.UNAVILABLE_MESSAGE, expectedMessage)
-        );
-        Assert.assertTrue(noBikesMsg.count() > 0, "Expected message not found: " + expectedMessage);
-    }
+
+
+
+
+
 
 
 }

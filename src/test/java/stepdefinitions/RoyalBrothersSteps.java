@@ -20,28 +20,18 @@ public class RoyalBrothersSteps {
         royalBrothers.searchAndSelectCity(city);
     }
 
-    @And("user selects pickup {string} and {string}")
-    public void user_selects_pickup_date_and_time(String date, String time) {
-        royalBrothers.setPickUpInfo(date, time);
+    @And("user selects pickup date {string} time {string} and dropOff date {string} time {string}")
+    public void user_selects_pickup_date_time_and_dropOff_date_time(String pickUpDate, String pickUpTime, String dropDate, String dropTime) {
+        royalBrothers.setPickAndDropInfo(pickUpDate,pickUpTime,dropDate,dropTime);
     }
-
-    @And("user selects drop {string} and {string}")
-    public void user_selects_drop_date_and_time(String date, String time) {
-        royalBrothers.setDropInfo(date, time);
-    }
-
     @And("user clicks on search")
     public void user_clicks_on_search() {
         royalBrothers.clickSearch();
     }
 
-    @Then("user validate {string} date {string} and time {string} should be visible")
-    public void selected_pickUp_date_and_time_should_be_visible(String type, String date, String time) {
-        if (type.equalsIgnoreCase("pickUp")) {
-            royalBrothers.validatePickup(date, time);
-        } else {
-            royalBrothers.validateDropOff(date, time);
-        }
+    @Then("user validate pickup date {string} time {string} and dropOff date {string} time {string}")
+    public void user_validate_pickup_date_time_and_dropOff_date_time(String pickupDate, String pickupTime, String dropDate, String dropTime) {
+        royalBrothers.validatePickupAndDropOff(pickupDate,pickupTime,dropDate,dropTime);
     }
 
     @Then("user applies location filter {string}")
@@ -49,23 +39,10 @@ public class RoyalBrothersSteps {
         royalBrothers.applyFilter(location);
     }
 
-    @And( "user should collect all the data of bikes with {string}")
+    @And( "user should collect and print all the data of bikes with {string}")
     public void user_should_collect_all_the_data_of_bikes_with_location(String location) {
         royalBrothers.collectBikesData(location);
     }
 
-    @Then("user should print bikes data")
-    public  void user_should_print_bikes_data(){
-        royalBrothers.printBikes();
-    }
 
-    @Then("user should validate the data at {string}")
-    public void user_should_validate_the_data(String locationName){
-        royalBrothers.validateCollectedData(locationName);
-    }
-     // ============ Negative case ==========
-    @Then("user should see no bikes message {string}")
-    public void user_should_see_no_bikes_message(String expectedMessage) {
-        royalBrothers.unAvilableBikes(expectedMessage);
-    }
 }

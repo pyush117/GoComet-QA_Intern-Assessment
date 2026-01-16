@@ -15,7 +15,6 @@ public class Hooks {
         factory = new PlaywrightFactory();
         page = factory.initBrowser();
     }
-
     @After
     public void tearDown() {
         page.context().browser().close();
